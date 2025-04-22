@@ -23,7 +23,7 @@ public class Endpoints {
     public static final String[] PUBLIC_POST_ENDPOINTS = {
 
 
-"/api/paypal/capture-order/**",
+            "/api/paypal/capture-order/**",
             "/account/register",
             "/account/login",
             "/api/**"

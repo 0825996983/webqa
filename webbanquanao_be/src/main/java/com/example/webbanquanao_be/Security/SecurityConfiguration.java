@@ -16,7 +16,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
-
 import java.util.Arrays;
 
 @Configuration
@@ -27,8 +26,6 @@ public class SecurityConfiguration {
 
     // Bean dùng để mã hóa mật khẩu bằng BCrypt
     @Bean
-
-
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
@@ -49,6 +46,7 @@ public class SecurityConfiguration {
 
         http.authorizeHttpRequests(
                 configurer -> configurer
+                        .requestMatchers("/account/login").permitAll()
                         .requestMatchers("/api/payment-history/paid").permitAll()
                         .requestMatchers("/api/paypal/capture-order/**").permitAll()
                         .requestMatchers("/api/cart/**").authenticated()
