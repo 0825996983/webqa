@@ -12,13 +12,11 @@ import java.util.UUID;
 @Service
 @AllArgsConstructor
 public class AccountService {
-    private BCryptPasswordEncoder passwordEncoder; // Dùng để mã hóa mật khẩu
+    private BCryptPasswordEncoder passwordEncoder;
     private UserRepository userRepository;
-    private EmailService emailService; // Service để gửi email xác nhận tài khoản
+    private EmailService emailService;
 
-    /**
-     * Đăng ký người dùng mới
-     */
+
     public ResponseEntity<?> userRegistration(User user) {
         // Kiểm tra xem tên đăng nhập đã tồn tại hay chưa
         if (userRepository.existsByUserName(user.getUserName())) {
