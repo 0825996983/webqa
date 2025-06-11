@@ -75,7 +75,7 @@ export default function NavBar({
     // Fetch dữ liệu giỏ hàng lần đầu tiên
     fetchCartItems();
 
-    // Thiết lập interval để tự động gọi lại API sau mỗi 5 giây
+    // // Thiết lập interval để tự động gọi lại API sau mỗi 5 giây
     const intervalId = setInterval(() => {
       fetchCartItems();
     }, 1000); // Mỗi 5 giây

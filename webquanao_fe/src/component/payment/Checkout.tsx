@@ -81,7 +81,7 @@ const Checkout = () => {
     };
 
     try {
-      const response = await axios.post(
+      const response = await axios.post (
         "http://localhost:8080/api/checkout",
         payload,
         {
@@ -89,7 +89,7 @@ const Checkout = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        } 
       );
       alert("Đặt hàng (COD) thành công!");
     } catch (error) {
@@ -121,7 +121,7 @@ const Checkout = () => {
 
       const { approvalUrl } = response.data;
       if (approvalUrl) {
-        window.location.href = approvalUrl; // Chuyển hướng đến PayPal để người dùng thanh toán
+        window.location.href = approvalUrl;
       } else {
         alert("Không thể tạo đơn PayPal.");
       }
@@ -217,7 +217,7 @@ const Checkout = () => {
 
 
           <div
-            className=" w-[500px] pl-8 border-l pt-10 h-[650px]  "
+            className=" w-[500px] pl-8 border-l pt-10 h-[650px] mr-40  "
             style={{ backgroundColor: "#F5F5F5" }}
           >
             <h2 className="text-xl font-semibold mb-4">Đơn hàng</h2>
@@ -243,7 +243,7 @@ const Checkout = () => {
             </div>
             <div className="order-summary">
               <div className="border-t-[1px] border-dashed border-gray-400"></div>
-              <div className="flex justify-between text-sm font-medium text-gray-600">
+              <div className="flex justify-between text-sm font-medium text-gray-600 mr-4">
                 <span className="text-xl pt-6">Tổng tiền:</span>
                 <span className="text-sm font-medium text-gray-900 pt-6">
                   <span className="text-xl font-medium ml-1 text-red-600 mb-20 ">
