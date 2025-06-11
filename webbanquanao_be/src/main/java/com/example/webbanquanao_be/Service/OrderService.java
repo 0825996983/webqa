@@ -29,7 +29,8 @@ public class OrderService {
     private final DeliveryMethodRepository deliveryMethodRepository;
 
     // Tạo đơn hàng tạm thời từ thông tin người dùng và giỏ hàng
-    public Orders createTemporaryOrder(CheckoutRequest request) {
+    public Orders    createTemporaryOrder(CheckoutRequest request) {
+
         // Lấy thông tin người dùng
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
@@ -123,4 +124,9 @@ public class OrderService {
             return new OrderHistoryResponse(order, orderDetails);
         }).collect(Collectors.toList());
     }
+
+    public List<Orders> findAllByUsername(String username) {
+        return ordersRepository.findAllByUser_UserName(username);
+    }
+
 }

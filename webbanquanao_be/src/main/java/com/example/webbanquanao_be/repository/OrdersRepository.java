@@ -10,10 +10,14 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
-@RepositoryRestResource(path = "order")
+@RepositoryRestResource(path = "order",exported = false)
 public interface OrdersRepository extends JpaRepository<Orders,Long> {
     Optional<Orders> findTopByUserAndStatus(User user, Orders.Status status);
     List<Orders> findByUser_IdAndStatus(Long userId, Orders.Status status);
 
     List<Orders> findByStatus(Orders.Status status);
+
+    List<Orders> findAllByUser_UserName(String userName);
+
+
 }

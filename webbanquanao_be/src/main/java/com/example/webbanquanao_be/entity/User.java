@@ -1,14 +1,17 @@
 package com.example.webbanquanao_be.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
+
 @Entity
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "user")
 public class User {
 
@@ -17,21 +20,24 @@ public class User {
     @Column(name = "id")
     private Long id;
 
-
     @Column(name = "username")
     private String userName;
 
     @Column(name = "firstname")
     private String firstName;
+
     @Column(name = "lastName")
     private String lastName;
 
     @Column(name = "password", length = 512)
     private String password;
+
     @Column(name = "gender")
     private char gender;
+
     @Column(name = "email")
     private String email;
+
     @Column(name = "phonenumber")
     private String phoneNumber;
 
@@ -41,33 +47,30 @@ public class User {
     @Column(name = "shippingaddress")
     private String shippingAddress;
 
-
-
     @Column(name = "activated")
     private boolean activated;
+
     @Column(name = "activationCode")
     private String activationCode;
+
+    // ❗ Tránh vòng lặp User → Cart → User
+    @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Cart> carts;
 
-
-
-
-
-    @OneToMany(mappedBy = "user",
-            fetch = FetchType.LAZY, cascade = {
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = {
             CascadeType.MERGE, CascadeType.PERSIST,
-            CascadeType.DETACH, CascadeType.REFRESH }
-    )
-    private List<Evaluate>  listEvaluate;
+            CascadeType.DETACH, CascadeType.REFRESH
+    })
+    private List<Evaluate> listEvaluate;
 
-    @OneToMany(mappedBy = "user",
-            fetch = FetchType.LAZY, cascade = {
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = {
             CascadeType.MERGE, CascadeType.PERSIST,
-            CascadeType.DETACH, CascadeType.REFRESH }
-    )
-    private List<Favorite_Products>  listfavoriteProduct;
-
+            CascadeType.DETACH, CascadeType.REFRESH
+    })
+    private List<Favorite_Products> listfavoriteProduct;
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = {
             CascadeType.MERGE, CascadeType.PERSIST,
@@ -78,19 +81,16 @@ public class User {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
-    private List<Role>  listRole;
-    @OneToMany(mappedBy = "user",
-            fetch = FetchType.LAZY, cascade = {
+    private List<Role> listRole;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = {
             CascadeType.MERGE, CascadeType.PERSIST,
-            CascadeType.DETACH, CascadeType.REFRESH }
-    )
+            CascadeType.DETACH, CascadeType.REFRESH
+    })
     private List<Orders> listOder;
 
-    public User() {
-
-    }
-
-
+    // Getter/setter riêng nếu dùng với boolean hoặc security
     public boolean isActivated() {
         return activated;
     }
@@ -122,10 +122,6 @@ public class User {
                 ", shippingAddress='" + shippingAddress + '\'' +
                 ", activated=" + activated +
                 ", activationCode='" + activationCode + '\'' +
-                ", listEvaluate=" + listEvaluate +
-                ", listfavoriteProduct=" + listfavoriteProduct +
-                ", listRole=" + listRole +
-                ", listOder=" + listOder +
                 '}';
     }
 }

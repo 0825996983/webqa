@@ -1,10 +1,10 @@
 package com.example.webbanquanao_be.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Entity
 @Data
@@ -19,12 +19,13 @@ public class CartItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Liên kết với Cart
+    // Liên kết với Cart (tránh vòng lặp Cart ↔ CartItem)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id", nullable = false)
+    @JsonBackReference  // ✅ Kết hợp với @JsonManagedReference trong Cart
     private Cart cart;
 
-    // Liên kết với Product
+    // Liên kết với Product (giữ lại để trả thông tin sản phẩm)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
@@ -33,10 +34,6 @@ public class CartItem {
     @Column(nullable = false)
     private int quantity;
 
-     @Column(name = "price")
+    @Column(name = "price")
     private BigDecimal price;
-
-
-
-
 }

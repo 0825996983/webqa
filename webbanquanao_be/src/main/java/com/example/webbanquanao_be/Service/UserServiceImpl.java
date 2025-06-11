@@ -22,9 +22,6 @@ public class UserServiceImpl implements UserService {
     private UserRepository userRepository; // Repository để thao tác với bảng User
     private RoleRepository roleRepository; // Repository để thao tác với bảng Role
 
-    /**
-     * Tìm kiếm người dùng theo tên đăng nhập
-     */
     @Override
     public User findByUserName(String userName) {
         return userRepository.findByUserName(userName);
@@ -50,11 +47,7 @@ public class UserServiceImpl implements UserService {
         );
     }
 
-    /**
-     * Chuyển đổi danh sách quyền từ Role sang GrantedAuthority để Spring Security sử dụng
-       roles - danh sách quyền của người dùng
-      Collection<? extends GrantedAuthority> - danh sách quyền dưới dạng GrantedAuthority
-     */
+
     private Collection<? extends GrantedAuthority> rolesToAuthorities(Collection<Role> roles) {
         return roles.stream()
                 .map(role -> new SimpleGrantedAuthority(role.getRoleName())) // Chuyển đổi Role thành SimpleGrantedAuthority

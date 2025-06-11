@@ -1,5 +1,6 @@
 package com.example.webbanquanao_be.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -20,17 +21,17 @@ public class Payment_Method {
 
     @Column(name = "description")
     private String description;
-    @Column(name = "paymentcost")
 
+    @Column(name = "paymentcost")
     private Double paymentCost;
 
-
+    @JsonIgnore  // ✅ Tránh vòng lặp khi trả JSON từ phía Orders → Payment_Method
     @OneToMany(mappedBy = "paymentMethod",
-            fetch = FetchType.LAZY, cascade = {
-            CascadeType.MERGE, CascadeType.PERSIST,
-            CascadeType.DETACH, CascadeType.REFRESH }
+            fetch = FetchType.LAZY,
+            cascade = {
+                    CascadeType.MERGE, CascadeType.PERSIST,
+                    CascadeType.DETACH, CascadeType.REFRESH
+            }
     )
     private List<Orders> listOder;
-
-
 }

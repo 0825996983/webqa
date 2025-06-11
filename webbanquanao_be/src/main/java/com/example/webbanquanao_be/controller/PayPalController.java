@@ -18,23 +18,21 @@ public class PayPalController {
     private final PayPalService payPalService;
     private final OrderService orderService;
 
+
+
     @PostMapping("/create-order")
     public ResponseEntity<?> createOrder(@RequestBody CheckoutRequest request) {
-        // Tạo đơn hàng tạm thời
         Orders order = orderService.createTemporaryOrder(request);
         String approvalUrl = payPalService.createOrder(request); // Tạo đơn hàng trên PayPal
-        return ResponseEntity.ok().body(Map.of("approvalUrl", approvalUrl)); // Trả về URL PayPal
+        return ResponseEntity.ok().body(Map.of("approvalUrl", approvalUrl));
     }
-
-
 
 
     @GetMapping("/capture-order")
     public ResponseEntity<?> captureOrder(@RequestParam String token,  @RequestParam Long userId) {
-        boolean success = payPalService.captureOrder(token);
+        boolean success = payPalService.captureOrder(token); //  hoàn tất thanh toán
 
         if (success) {
-            // ✨ Sau khi capture thành công  ,lưu đơn hàng
             Orders order = orderService.createOrderAfterPayPal(userId, token);
             return ResponseEntity.ok(order);
         } else {

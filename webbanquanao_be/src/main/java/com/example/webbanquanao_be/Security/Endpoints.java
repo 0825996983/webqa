@@ -7,13 +7,16 @@ public class Endpoints {
 
 
 
+
     public static final String[] PUBLIC_GET_ENDPOINTS = {
+            "orders/user",
+
+
+    };
+    public static final String[] PUBLIC_GET_ENDPOINTS_AT = {
             "/api/orders/**",
-"api/paypal/**",
-            "/product",
+            "api/paypal/**",
             "/product/**",
-            "/galery",
-            "/galery/**",
             "/user/search/existsByUserName",
             "user/search/existsByEmail",
             "/account/activate"

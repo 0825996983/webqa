@@ -64,7 +64,7 @@ public class PayPalService {
         order.put("intent", "CAPTURE");
         order.put("purchase_units", List.of(
                 Map.of("amount", Map.of(
-                        "currency_code", "USD",  // Hoặc currency mà bạn dùng
+                        "currency_code", "USD",
                         "value", totalAmount.toPlainString()  // Tổng số tiền đã tính toán
                 ))
         ));
@@ -80,6 +80,7 @@ public class PayPalService {
                 entity,
                 Map.class
         );
+
 
         // Trả về approvalUrl (URL để người dùng duyệt thanh toán)
         List<Map<String, String>> links = (List<Map<String, String>>) response.getBody().get("links");

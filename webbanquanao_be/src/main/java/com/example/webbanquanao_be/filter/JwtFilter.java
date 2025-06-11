@@ -17,64 +17,66 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-
-@AllArgsConstructor
 @Component
+@AllArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
+
     @Autowired
     private JwtSevice jwtSevice;
+
     @Autowired
-    private UserService userDetailSevice;  // Dịch vụ lấy thông tin người dùng từ database
+    private UserService userDetailSevice;
 
-    // Constructor mặc định
-    public JwtFilter() {}
-
-    /**
-     * Xử lý request để kiểm tra JWT Token, nếu hợp lệ thì thiết lập authentication.
-     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // Lấy giá trị của Header "Authorization"
+        String path = request.getRequestURI();
+
+        // ✅ Bỏ qua các endpoint public
+        if (path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/account/login")
+                || path.startsWith("/account/register")
+                || path.startsWith("/account/activate")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String authHeader = request.getHeader("Authorization");
         String token = null;
         String userName = null;
 
-        // Kiểm tra xem Header có chứa Token hợp lệ không (phải bắt đầu bằng "Bearer ")
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7); // Cắt bỏ "Bearer " để lấy JWT Token
-            userName = jwtSevice.extractUserName(token); // Trích xuất username từ token
-            System.out.println("Extracted username: " + userName); // In ra để kiểm tra
-
+            token = authHeader.substring(7);
+            userName = jwtSevice.extractUserName(token);
         }
 
+        // ❗ Nếu không có token hoặc không trích được username → 401
+        if (userName == null) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Missing or invalid JWT");
+            return;
+        }
 
-
-
-        // Nếu có userName nhưng chưa được xác thực trong SecurityContextHolder
-        if (userName != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            // Lấy thông tin chi tiết của user từ database
+        // Nếu chưa được xác thực trong context
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailSevice.loadUserByUsername(userName);
 
-            // Kiểm tra tính hợp lệ của token
             if (jwtSevice.validateToken(token, userDetails)) {
-                System.out.println("Token is valid: " + jwtSevice.validateToken(token, userDetails));
-
-                // Tạo authentication token cho Spring Security
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-                // Gán thông tin của request vào authentication token
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                // Đặt authentication vào SecurityContextHolder để đánh dấu user đã đăng nhập
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Invalid JWT");
+                return;
             }
         }
 
-        // Tiếp tục chuỗi filter (đảm bảo request vẫn hoạt động bình thường)
         filterChain.doFilter(request, response);
     }
 }

@@ -16,71 +16,69 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+
 import java.util.Arrays;
 
 @Configuration
 @AllArgsConstructor
 public class SecurityConfiguration {
 
-    private JwtFilter jwtFilter; // Bộ lọc JWT để kiểm tra token trong request
+    private final JwtFilter jwtFilter;
 
-    // Bean dùng để mã hóa mật khẩu bằng BCrypt
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // Cấu hình Authentication Provider để xác thực user thông qua UserService
     @Bean
     public DaoAuthenticationProvider authenticationProvider(UserService userService) {
         DaoAuthenticationProvider dap = new DaoAuthenticationProvider();
-        dap.setUserDetailsService(userService); // Sử dụng UserService để lấy thông tin user
-        dap.setPasswordEncoder(passwordEncoder()); // Dùng BCrypt để kiểm tra mật khẩu
+        dap.setUserDetailsService(userService);
+        dap.setPasswordEncoder(passwordEncoder());
         return dap;
     }
 
-    // Cấu hình bảo mật của ứng dụng
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(cors -> cors.configurationSource(request -> {
+                    CorsConfiguration corsConfig = new CorsConfiguration();
+                    corsConfig.addAllowedOrigin(Endpoints.front_end_host);
+                    corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
+                    corsConfig.addAllowedHeader("*");
+                    return corsConfig;
+                }))
+                .authorizeHttpRequests(configurer -> configurer
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
 
-        http.authorizeHttpRequests(
-                configurer -> configurer
+                        // Các endpoint cho phép public
                         .requestMatchers("/account/login").permitAll()
                         .requestMatchers("/api/payment-history/paid").permitAll()
                         .requestMatchers("/api/paypal/capture-order/**").permitAll()
+
+                        // Endpoint có bảo vệ
                         .requestMatchers("/api/cart/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, Endpoints.PUBLIC_GET_ENDPOINTS).authenticated()
-                        .requestMatchers(HttpMethod.POST, Endpoints.PUBLIC_POST_ENDPOINTS).authenticated()    // API POST public - Ai cũng có thể truy cập
-                        .requestMatchers(HttpMethod.GET, Endpoints.ADMIN_GET_ENDPOINTS).hasAuthority("ADMIN") // Chỉ ADMIN mới có quyền GET
-                        .requestMatchers(HttpMethod.POST, Endpoints.ADMIN_POST_ENDPOINTS).hasAuthority("ADMIN") // Chỉ ADMIN mới có quyền POST
-        );
+                        .requestMatchers(HttpMethod.GET, Endpoints.PUBLIC_GET_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, Endpoints.PUBLIC_GET_ENDPOINTS_AT).authenticated()
+                        .requestMatchers(HttpMethod.POST, Endpoints.PUBLIC_POST_ENDPOINTS).authenticated()
+                        .requestMatchers(HttpMethod.GET, Endpoints.ADMIN_GET_ENDPOINTS).hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.POST, Endpoints.ADMIN_POST_ENDPOINTS).hasAuthority("ADMIN")
 
-        // Cấu hình CORS - Chỉ cho phép frontend từ địa chỉ được khai báo truy cập
-        http.cors(cors -> {
-            cors.configurationSource(request -> {
-                CorsConfiguration corsConfig = new CorsConfiguration();
-                corsConfig.addAllowedOrigin(Endpoints.front_end_host);                       // Chỉ cho phép frontend gọi API
-                corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE")); // Cho phép các phương thức HTTP
-                corsConfig.addAllowedHeader("*");                                            // Cho phép tất cả header trong request
-                return corsConfig;
-            });
-        });
+                        // Mặc định các request khác đều phải xác thực
+                        .anyRequest().authenticated()
+                );
 
-        // Quản lý session theo dạng STATELESS - Không lưu trạng thái đăng nhập trên server
-        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-
-        // Tắt CSRF - Không cần thiết khi dùng JWT
-        http.csrf(csrf -> csrf.disable());
-
-        // Thêm bộ lọc JWT trước khi xử lý xác thực user bằng UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-        // Cấu hình HTTP Basic (chế độ xác thực đơn giản) nhưng không cần thiết vì dùng JWT
         http.httpBasic(Customizer.withDefaults());
         return http.build();
     }
 
-    // Quản lý Authentication (xác thực user)
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();

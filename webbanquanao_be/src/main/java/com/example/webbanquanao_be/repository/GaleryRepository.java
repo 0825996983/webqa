@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 
-@Repository
+@RepositoryRestResource(path = "category",exported = false)
 public interface GaleryRepository extends JpaRepository<Galery,Long> {
 
     // Lấy danh sách ảnh theo product_id

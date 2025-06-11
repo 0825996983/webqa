@@ -7,8 +7,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@RepositoryRestResource(path = "OrderDetail")
+@RepositoryRestResource(path = "OrderDetail",exported = false)
 public interface OrderDetailRepository extends JpaRepository<Order_Details, Long> {
-    // Sửa thành findByOrdersId để tìm các chi tiết đơn hàng dựa trên Orders
+
     List<Order_Details> findByOrdersId(Long orderId);
 }

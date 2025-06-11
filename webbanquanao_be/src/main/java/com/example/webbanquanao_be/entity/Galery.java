@@ -3,10 +3,12 @@ package com.example.webbanquanao_be.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+
 @Entity
 @Data
 @Table(name = "galery")
 public class Galery {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -17,17 +19,19 @@ public class Galery {
 
     @Column(name = "mainimage")
     private Boolean mainImage;
+
     @Column(name = "link")
     private String link;
-     @Column(name = "imagedata", columnDefinition = "LONGTEXT")
-     @Lob
+
+    @Column(name = "imagedata", columnDefinition = "LONGTEXT")
+    @Lob
     private String imageData;
-     @JsonIgnore
-    @ManyToOne(    fetch = FetchType.LAZY, cascade = {
+
+    @JsonIgnore  
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {
             CascadeType.MERGE, CascadeType.PERSIST,
-            CascadeType.DETACH, CascadeType.REFRESH }
-    )
+            CascadeType.DETACH, CascadeType.REFRESH
+    })
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
-
 }

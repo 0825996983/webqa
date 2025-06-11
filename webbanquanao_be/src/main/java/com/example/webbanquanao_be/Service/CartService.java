@@ -32,7 +32,9 @@ public class CartService {
     @Autowired
     private UserRepository userRepository;
 
-    // Thêm sản phẩm vào giỏ hàng
+    @Autowired
+    private RedisCacheService redisCacheService;
+
     public CartItemResponse addToCart(AddToCartRequest request) {
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
@@ -40,103 +42,185 @@ public class CartService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
 
-        Cart cart = cartRepository.findByUser(user);
+        Cart cart = redisCacheService.getCartFromCache(user.getId());
+
         if (cart == null) {
-            cart = new Cart();
-            cart.setUser(user);
-            cart = cartRepository.save(cart);  // Lưu giỏ hàng mới nếu không có
+
+            cart = cartRepository.findByUser(user);
+            if (cart == null) {
+                cart = new Cart();
+                cart.setUser(user);
+                cart.setCartItems(new ArrayList<>());
+                cart = cartRepository.save(cart);
+
+            }
+            redisCacheService.saveCartToCache(user.getId(), cart);
+        } else if (cart.getUser() == null) {
+            cart.setUser(user); // 🔥 Fix lỗi Hibernate null user
         }
 
-        // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
-        Optional<CartItem> existingItem = cartItemRepository.findByCartAndProduct(cart, product);
+        Optional<CartItem> existingItemOpt = cart.getCartItems().stream()
+                .filter(item -> item.getProduct().getId().equals(product.getId()))
+                .findFirst();
 
-        CartItem cartItem;
-        if (existingItem.isPresent()) {
-            cartItem = existingItem.get();
-            cartItem.setQuantity(cartItem.getQuantity() + 1);  // Cập nhật số lượng
+        if (existingItemOpt.isPresent()) {
+            CartItem existingItem = existingItemOpt.get();
+            existingItem.setQuantity(existingItem.getQuantity() + 1);
         } else {
-            cartItem = new CartItem();
-            cartItem.setCart(cart);
-            cartItem.setProduct(product);
-            cartItem.setQuantity(1);  // Thêm sản phẩm mới vào giỏ
-            cartItem.setPrice(product.getPrice());
+            CartItem newItem = new CartItem();
+            newItem.setCart(cart);
+            newItem.setProduct(product);
+            newItem.setQuantity(1);
+            newItem.setPrice(product.getPrice());
+            cart.getCartItems().add(newItem);
         }
 
-        cartItem = cartItemRepository.save(cartItem);
+        cart = cartRepository.save(cart);
+        redisCacheService.saveCartToCache(user.getId(), cart);
 
-        return convertToResponse(cartItem);
+        CartItem updatedItem = cart.getCartItems().stream()
+                .filter(item -> item.getProduct().getId().equals(product.getId()))
+                .findFirst()
+                .get();
+
+        return convertToResponse(updatedItem);
     }
 
-    // Lấy tất cả sản phẩm trong giỏ hàng của người dùng
     public List<CartItemResponse> getCartItemsByUserId(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        Cart cart = redisCacheService.getCartFromCache(userId);
 
-        Cart cart = cartRepository.findByUser(user);
         if (cart == null) {
-            return new ArrayList<>();
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            cart = cartRepository.findByUser(user);
+            if (cart == null) {
+                return new ArrayList<>();
+            }
+            redisCacheService.saveCartToCache(userId, cart);
         }
 
-        List<CartItem> items = cartItemRepository.findByCart(cart);
         List<CartItemResponse> result = new ArrayList<>();
-
-        for (CartItem item : items) {
-            result.add(convertToResponse(item));  // Sử dụng phương thức chuyển đổi
+        for (CartItem item : cart.getCartItems()) {
+            result.add(convertToResponse(item));
         }
-
         return result;
     }
 
-    // Tăng số lượng sản phẩm trong giỏ hàng
     public CartItemResponse increaseQuantity(Long userId, Long productId) {
-        CartItem cartItem = getCartItemByUserAndProduct(userId, productId);
+        Cart cart = redisCacheService.getCartFromCache(userId);
+
+        if (cart == null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            cart = cartRepository.findByUser(user);
+            if (cart == null) {
+                throw new RuntimeException("Giỏ hàng không tồn tại");
+            }
+            cart.setUser(user); // đảm bảo user không null
+        } else if (cart.getUser() == null) {
+            // Gán lại user nếu bị mất do deserialize từ Redis
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            cart.setUser(user);
+        }
+
+        Optional<CartItem> itemOpt = cart.getCartItems().stream()
+                .filter(i -> i.getProduct().getId().equals(productId))
+                .findFirst();
+
+        if (itemOpt.isEmpty()) {
+            throw new RuntimeException("Sản phẩm không tồn tại trong giỏ hàng");
+        }
+
+        CartItem cartItem = itemOpt.get();
         cartItem.setQuantity(cartItem.getQuantity() + 1);
-        cartItem = cartItemRepository.save(cartItem);
+
+        cart = cartRepository.save(cart);
+        redisCacheService.saveCartToCache(userId, cart);
+
         return convertToResponse(cartItem);
     }
 
-    // Giảm số lượng sản phẩm trong giỏ hàng
     public CartItemResponse decreaseQuantity(Long userId, Long productId) {
-        CartItem cartItem = getCartItemByUserAndProduct(userId, productId);
+        Cart cart = getCartOrThrow(userId);
+        ensureUserAssigned(cart, userId);
 
+        Optional<CartItem> itemOpt = cart.getCartItems().stream()
+                .filter(i -> i.getProduct().getId().equals(productId))
+                .findFirst();
+
+        if (itemOpt.isEmpty()) {
+            throw new RuntimeException("Sản phẩm không tồn tại trong giỏ hàng");
+        }
+
+        CartItem cartItem = itemOpt.get();
         if (cartItem.getQuantity() > 1) {
             cartItem.setQuantity(cartItem.getQuantity() - 1);
-            cartItem = cartItemRepository.save(cartItem);
         } else {
-            cartItemRepository.delete(cartItem);  // Xóa sản phẩm khi số lượng = 1
+            cart.getCartItems().remove(cartItem);
+            cartItemRepository.delete(cartItem);
         }
+
+        cart = cartRepository.save(cart);
+        redisCacheService.saveCartToCache(userId, cart);
+
         return convertToResponse(cartItem);
     }
 
-    // Xóa sản phẩm khỏi giỏ hàng
     public void deleteProductFromCart(Long userId, Long productId) {
-        CartItem cartItem = getCartItemByUserAndProduct(userId, productId);
+        Cart cart = getCartOrThrow(userId);
+        ensureUserAssigned(cart, userId);
+
+        Optional<CartItem> itemOpt = cart.getCartItems().stream()
+                .filter(i -> i.getProduct().getId().equals(productId))
+                .findFirst();
+
+        if (itemOpt.isEmpty()) {
+            throw new RuntimeException("Sản phẩm không tồn tại trong giỏ hàng");
+        }
+
+        CartItem cartItem = itemOpt.get();
+        cart.getCartItems().remove(cartItem);
         cartItemRepository.delete(cartItem);
+
+        cart = cartRepository.save(cart);
+        redisCacheService.saveCartToCache(userId, cart);
     }
 
-    // Lấy CartItem dựa trên userId và productId
-    private CartItem getCartItemByUserAndProduct(Long userId, Long productId) {
-        Cart cart = cartRepository.findByUser(userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found")));
-        return cartItemRepository.findByCartAndProduct(cart, productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tìm thấy"))).orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại trong giỏ hàng"));
-    }
-
-    // Chuyển đổi CartItem sang CartItemResponse để trả về frontend
     private CartItemResponse convertToResponse(CartItem cartItem) {
         CartItemResponse response = new CartItemResponse();
-
         response.setProductId(cartItem.getProduct().getId());
         response.setProductName(cartItem.getProduct().getProductName());
         response.setQuantity(cartItem.getQuantity());
         response.setPrice(cartItem.getPrice());
 
-        // Lấy ảnh sản phẩm từ Galery
         List<Galery> galeries = galeryRepository.findByProductId(cartItem.getProduct().getId());
         if (!galeries.isEmpty()) {
             response.setImageData(galeries.get(0).getImageData());
         }
 
         return response;
+    }
+
+    private Cart getCartOrThrow(Long userId) {
+        Cart cart = redisCacheService.getCartFromCache(userId);
+        if (cart == null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            cart = cartRepository.findByUser(user);
+            if (cart == null) {
+                throw new RuntimeException("Giỏ hàng không tồn tại");
+            }
+        }
+        return cart;
+    }
+
+    // Đảm bảo cart có User trước khi lưu
+    private void ensureUserAssigned(Cart cart, Long userId) {
+        if (cart.getUser() == null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            cart.setUser(user);
+        }
     }
 }
